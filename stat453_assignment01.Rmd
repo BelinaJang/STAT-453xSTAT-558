@@ -1,0 +1,369 @@
+---
+title: "Stat453_Assignment01"
+author: "Belina Jang"
+date: "2023-01-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Questions
+
+## 1) Suppose that we are testing H0: µ1 = µ2 versus H1: µ1 > µ2 with a sample size of n1 = n2 = 10. Both sample variances are unknown but assumed equal. Using R, find p-values for the following observed values of the test statistics:
+
+```{r}
+# (a) t0 = 2.45
+t0 = 2.45
+df = 18 # n1+n2-2
+pt(t0, df, lower.tail = FALSE)
+
+# (b) t0 = -3.60
+t0 = -3.60
+pt(t0, df, lower.tail = FALSE)
+
+# (c) t0 = 1.96
+t0 = 1.96
+pt(t0, df, lower.tail = FALSE)
+
+# (d) t0 = -2.19
+t0 = -2.19
+pt(t0, df, lower.tail = FALSE)
+```
+### (1-e) Repeat (a)-(d) for the case when the alternative hypothesis is two-sided.
+
+```{r}
+# (a) t0 = 2.45
+t0 = 2.45
+pt(abs(t0), df, lower.tail = FALSE)*2
+
+# (b) t0 = -3.60
+t0 = -3.60
+pt(abs(t0), df, lower.tail = FALSE)*2
+
+# (c) t0 = 1.96
+t0 = 1.96
+pt(abs(t0), df, lower.tail = FALSE)*2
+
+# (d) t0 = -2.19
+t0 = -2.19
+pt(abs(t0), df, lower.tail = FALSE)*2
+```
+## 2) The time to repair an electronic instrument is a normally distributed random variable measured in hours. The repair time for 16 such instruments chosen at random are as follows:
+Hours\
+159 280 101 212\
+224 379 179 264\
+222 362 168 250\
+149 260 485 170\
+
+```{r}
+hours = c(159, 280, 101, 212, 224, 379, 179, 264, 222, 362, 168, 250, 149, 260, 485, 170)
+```
+
+### (2-a) Is the normality assumption appropriated? Justify.
+
+```{r}
+# normality_check
+shapiro.test(hours)
+```
+
+$\therefore$ The p-value is 0.1685, which is greater than 0.05, so we fail to reject the null hypothesis that the data is normally distributed. So the normality assumption is appropriate.
+
+### (2-b) You wish to know if the mean repair time exceeds 225 hours. Set up appropriate hypotheses for investigating this issue.
+
+H0: µ <= 225: null hypothesis mean is less than or equal to 225 hours\
+H1: µ > 225: alternative hypothesis mean exceeds 225 hours
+
+### (2-c) Using R, test the hypotheses you formulated in part (b). What are your conclusions? Use a = 0.01.
+
+```{r}
+a = 0.01
+sample_mean = mean(hours) # 241.5
+sample_sd = sd(hours) # 98.72588
+t0 = (sample_mean - 225)/(sample_sd/sqrt(16)) # 0.6685177
+df = 16-1 # 15
+
+print("p-value")
+pt(t0, df, lower.tail = FALSE) # 0.2569801
+
+t.test(hours, mu=225, alternative = "greater")$p.value < a
+```
+$\therefore$ The p-value is 0.2569801, which is greater than 0.01, so we fail to reject the null hypothesis that the mean repair time is less than or equal to 225 hours.\
+Therefore, we cannot conclude that the mean repair time exceeds 225 hours.
+
+### (2-d) By hand, construct a 95 percent confidence interval on mean repair time to test your hypothesis in (b). Show your work.
+
+Calculation by hand:
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+
+```{r}
+a = 0.05
+t_a = qt(a, df, lower.tail = FALSE) # 1.75305
+lower_limit = sample_mean - t_a * sample_sd/sqrt(16) #[1] 198.2321
+CI_95 = c(lower_limit, "Inf")
+CI_95
+print("95% CI: (198.2321, Inf)")
+```
+
+## 3) An article in the journal of Neurology (1998, Vol. 50, pp.1246-1252) observed that the monozygotic twins share numerous physical, psychological and pathological traits. The investigators measured an intelligence score of 10 pairs of twins. The data are obtained as follows:
+ Twin pair\
+ Birth Order: 1 Birth Order: 2\
+ 1 5.73 6.08\
+ 2 5.80 6.22\
+ 3 8.42 7.99\
+ 4 6.84 7.44\
+ 5 6.43 6.48\
+ 6 8.76 7.99\
+ 7 6.32 6.32\
+ 8 7.62 7.60\
+ 9 6.59 6.03\
+ 10 7.67 7.52\
+
+```{r}
+twin_pair = c(1:10)
+birth_order_1 = c(5.73, 5.80, 8.42, 6.84, 6.43, 8.76, 6.32, 7.62, 6.59, 7.67)
+birth_order_2 = c(6.08, 6.22, 7.99, 7.44, 6.48, 7.99, 6.32, 7.60, 6.03, 7.52)
+d = birth_order_1-birth_order_2
+df2 = data.frame(twin_pair, birth_order_1, birth_order_2,d)
+```
+
+### (3-a) Is the assumption that the difference in score is normally distributed reasonable?
+```{r}
+# normality_check
+shapiro.test(birth_order_1 - birth_order_2)
+```
+$\therefore$ The p-value is 0.8645, which is greater than 0.05, so we fail to reject the null hypothesis that the data is normally distributed.\
+Therefore, the assumption is reasonable.
+
+### (3-b) Using R, find a 95% confidence interval on the difference in the mean score. Is there any evidence that mean score depends on birth order?
+```{r}
+# 95% confidence interval
+var.test(birth_order_1, birth_order_2) # 95% CI contains 1, so we assume variances are equal
+a = 0.05
+
+# paired t-test
+d_bar = sum(d)/10
+s_d = sqrt(sum((d-d_bar)^2)/(10-1))
+t0 = d_bar/s_d/sqrt(10)
+t_a2 = qt(a/2,10-1,lower.tail = FALSE)
+lower_limit = d_bar - t_a2 * s_d/sqrt(10)
+upper_limit = d_bar + t_a2 * s_d/sqrt(10)
+CI_95 = c(lower_limit, upper_limit)
+CI_95
+```
+
+$\therefore$ 95% confidence interval on the difference in the mean score is (-0.2644148, 0.3664148). And there's no evidence that the mean score depends on birth order, since the 95% CI contains 0 (indicating the mean values are equal).\
+
+### (3-c) Test an appropriate set of hypotheses indicating that the mean score does not depend on birth order.
+
+```{r}
+# H0: µ1 = µ2: supports that the mean score does not depend on birth order
+# H1: µ1 != µ2: supports that the mean score does depend on birth order
+# Assume the datas are paired, observe p-value
+t.test(birth_order_1, birth_order_2, alternative="two.sided",paired = TRUE, var.equal=TRUE)
+```
+$\therefore$ The p-value is 0.723, which is greater than 0.05, so we fail to reject the null hypothesis that the mean scores are equal.\
+Therefore, since the mean scores are likely equal, there is no evidence that the mean score depends on birth order.
+
+## 4) The deflection temperature under load for two different formulations of ABS plastic pipe is being studied. Two samples of 12 observations each are prepared using each formulation, and the deflection temperatures (in °F) are reported below:\
+ Formulation 1 Formulation 2\
+ 206 193 192 177 176 198\
+ 188 207 210 197 185 188\
+ 205 185 194 206 200 189\
+ 187 189 178 201 197 203
+ 
+```{r}
+formulation_1 = c(206, 193, 192, 188, 207, 210, 205, 185, 194, 187, 189, 178)
+formulation_2 = c(177, 176, 198, 197, 185, 188, 206, 200, 189, 201, 197, 203)
+df4 = data.frame(formulation_1,formulation_2)
+```
+
+Do the data support the claim that the mean deflection temperature under load for formulation 2 exceeds that of formulation 1?
+
+### (4-a) Use a = 0.05 to perform a complete analysis in R, including normality check and the appropriate test. Use the rejection region method to test your hypothesis.
+
+H0: µ1 >= µ2 \
+H1: µ1 < µ2 # alternative hypothesis: formulation 2 has a higher mean deflection temperature
+
+```{r}
+# normality check
+shapiro.test(df4$formulation_1-df4$formulation_2)
+
+# Variance
+var.test(formulation_1, formulation_2)
+```
+$\therefore$ The p-values of the normality test is 0.4443, which is greater than 0.05, so we fail to reject the null hypothesis that the data is normally distributed.\
+95% CI of F-test contains 1, so we assume the variances are equal.
+
+```{r}
+# Assuming the variances are equal
+a = 0.05
+
+s1 = sd(df4$formulation_1) # 10.17573
+s2 = sd(df4$formulation_2) # 9.949494
+
+sp = sqrt(((12-1)*s1^2+(12-1)*s2^2)/(12+12-2)) # 10.06325
+t0 = (mean(formulation_1)-mean(formulation_2))/(sp*(sqrt(1/12+1/12))) # 0.3448301
+
+
+# using rejection region
+qt(a, 12+12-2, lower.tail = FALSE) # ta = 1.717144
+t0 < -qt(a, 12+12-2, lower.tail = FALSE) # False, we can't reject H0
+
+# using p-value, t-test
+pt(t0, 22, lower.tail = TRUE) # p-value 0.6332515 -> can't reject H0
+t.test(formulation_1, formulation_2, var.equal = TRUE, alternative = "less") # double checking p-value
+
+```
+$\therefore$ Since p-value of t-test is 0.6333, which is greater than 0.05, we fail to reject the null hypothesis H0. Also we can see that t0 is not in the rejection region(t0<-ta), so we cannot reject H0.
+
+### (4-b) Does the confidence interval support your conclusion on part a? Justify.
+
+```{r}
+upper_limit = mean(formulation_1)-mean(formulation_2) + qt(a, 12+12-2, lower.tail = FALSE) * sp*(sqrt(1/12+1/12))
+CI = c("-Inf", upper_limit)
+print("95% Confidence Interval")
+CI # (-Inf, 8.471217)
+```
+
+```{r}
+t.test(formulation_1, formulation_2, alternative = 'less', var.equal = TRUE) # double check CI
+```
+
+$\therefore$ 95% confidence interval is (-Inf, 8.471217)\
+The confidence interval does contain 0, so it supports H0 that µ1 >= µ2.\
+So, it supports my conclusion on part (a) not to reject H0.
+
+## 5) Photoresist is a light-sensitive material applied to semiconductor wafers so that the circuit pattern can be imaged on to the wafer. After application, the coated wafers are baked to remove the solvent in the photoresist mixture and to harden the resist. Here are measurements of photoresist thickness (in kÅ) for eight wafers baked at two different temperatures. Assume that all of the 16 runs were made in random order. Note: a wafer cannot be baked twice.
+ 95 ºC 100 ºC\
+ 11.176 5.623\
+ 7.089 6.748\
+ 8.097 7.461\
+ 11.739 7.015\
+ 11.291 8.133\
+ 10.759 7.418\
+ 6.467 3.772\
+ 8.315 8.963\
+ 
+```{r}
+temp95 = c(11.176, 7.089, 8.097, 11.739, 11.291, 10.759, 6.467, 8.315)
+temp100 = c(5.623, 6.748, 7.461, 7.015, 8.133, 7.418, 3.772, 8.963)
+df5 = data.frame(temp95, temp100)
+```
+
+### (5-a) Is there evidence to support the claim that the higher baking temperature results in wafers with a lower mean photoresist thickness? Use a = 0.05 and justify your answer.
+
+```{r}
+# H0: µ1 <= µ2
+# H1: µ1 > µ2
+
+a = 0.05
+
+var.test(temp95, temp100) # 95% CI contains 1 so we assume the variances are equal.
+
+# Assuming variances are equal
+s1 = sd(temp95)
+s2 = sd(temp100)
+sp = sqrt(((8-1)*s1^2+(8-1)*s2^2)/(8+8-2))
+t0 = (mean(temp95)-mean(temp100))/(sp*(sqrt(1/8+1/8)))
+print("p-value")
+pt(t0, 8+8-2, lower.tail = FALSE) # p-value 0.009423718
+
+t.test(temp95, temp100, alternative = "greater", var.equal= TRUE)  # double checking p-value
+
+```
+
+$\therefore$ The p-value is 0.009423718, which is smaller than 0.05, therefore, there's a very strong evidence against H0, so we reject H0.\
+Therefore, there is an evidence to support the claim that the higher baking temperature results in wafers with a lower mean photoresist thickness.
+
+### (5-b) Find a 95% confidence interval on the difference in means. Provide a practical interpretation of this interval.
+
+```{r}
+a = 0.05
+s1 = sd(temp95)
+s2 = sd(temp100)
+sp = sqrt(((8-1)*s1^2+(8-1)*s2^2)/(8+8-2))
+t0 = (mean(temp95)-mean(temp100))/(sp*(sqrt(1/8+1/8)))
+lower_limit = mean(temp95)-mean(temp100) - qt(a, 8+8-2, lower.tail = FALSE) * sp * sqrt(1/8+1/8)
+
+CI = c(lower_limit, "Inf")
+print("95% CI")
+CI # (0.8330468, Inf) lower limit only since it's a one sided test
+```
+
+$\therefore$ The confidence interval, (0.8330468, Inf), shows where the absolute value of the mean difference |µ1-µ2| lies. Since the 95% confidence inteval does not contain 0, it indicates that there is statistically significant difference between two mean values.
+
+## 6) The following are the burning times (in minutes) of chemical flares of two different formulations. The design engineers are interested in both the means and variance of the burning times.
+Type 1 Type 2\
+ 65 82 64 56\
+ 81 67 71 69\
+ 57 59 83 74\
+ 66 75 59 82\
+ 82 70 65 79\
+ 
+```{r}
+type_1 = c(65, 82, 81, 67, 57, 59, 66, 75, 82, 70)
+type_2 = c(64, 56, 71, 69, 83, 74, 59, 82, 65, 79)
+df6 = data.frame(type_1, type_2)
+```
+
+### (6-a) Test the hypotheses that the two variances are equal. Use a = 0.05.
+
+```{r}
+# H0: sigma1^2 = sigma2^2
+# H1: sigma1^2 != sigma2^2
+
+a = 0.05
+f0 = sd(type_1)^2/sd(type_2)^2
+f0 # 0.9782168
+
+f_a2 = qf(a/2, 10-1, 10-1, lower.tail = FALSE)
+f_a2 #4.025994
+
+print("abs(f0) > f_a2")
+abs(f0) > f_a2 # FALSE so we can't reject the null hypothesis that the two variances are equal. slide 18
+
+var.test(type_1, type_2) # 0.9744
+```
+Since, abs(f0) > f_a2 is false and p-value is 0.744, we can't reject the null hypothesis that the two variances are equal.
+Therefore, variances are equal.
+
+### (6-b) Using the results of (a), test the hypotheses that the mean burning times are equal. Use a = 0.01. What is the p-value for this test?
+
+```{r}
+# variances are equal and unknown
+# H0: µ1 = µ2
+# H1: µ1 != µ2
+
+sp = sqrt(((10-1)*sd(type_1)^2+(10-1)*sd(type_2)^2)/(10+10-2))
+t0 = (mean(type_1)-mean(type_2))/(sp*(sqrt(1/10+1/10)))
+pt(abs(t0), 10+10-2, lower.tail = FALSE)*2
+t.test(type_1, type_2, var.equal = TRUE) # double check p-value
+```
+$\therefore$ The p-value 0.9622 is greater than 0.01, so we fail to reject the null hypothesis that the mean burning times are equal.\
+Therefore, we can assume that mean burning times are equal.
+
+### (6-c) Discuss the role of the normality assumption in this problem. Check the assumption of normality for both types of flares.
+```{r}
+# normality check: The test rejects the hypothesis of normality when the p-value <= 0.05.
+shapiro.test(type_1) #p-value > 0.05, so we do not reject the hyphothesis, the data is likely normal.
+shapiro.test(type_2) #p-value > 0.05, so we do not reject the hyphothesis, the data is likely normal.
+```
+
+$\therefore$ In the part (a,b), the basic assumption required is that the samples are drawn from two independent normal populations, so it's important to check for the normality. And both Type 1 and Type 2 datas are normal.

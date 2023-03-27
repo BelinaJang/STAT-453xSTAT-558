@@ -1,0 +1,409 @@
+---
+title: "Stat453_Assigment02"
+author: "Belina Jang"
+date: '`r Sys.Date()`'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Questions
+
+## Question 1. Show that for the one-way ANOVA we have E(MSE) = sigma^2.
+
+Calculation by hand:
+
+```{r include=FALSE}
+library(lme4)
+library(dplyr)
+library(ggplot2)
+```
+
+## Question 2. An article in the Journal of the Electrochemical Society (Vol. 139, No. 2, 1992, pp. 524-532) describes an experiment to investigate low-pressure vapor deposition of polysilicon. The experiment was carried out in a large capacity reactor at Sematech in Austin, Texas. The reactor has several wafer positions, and four of these positions are selected at random. The response variable is film thickness uniformity. Three replicates of the experiment were run, and the data are as follows:
+
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("question2.png")
+```
+
+```{r}
+uniformity = c(2.76, 5.67, 4.49, 1.43, 1.70, 2.19, 2.34, 1.97, 1.47, 0.94, 1.36, 1.65)
+WaterPosition = c(1,1,1,2,2,2,3,3,3,4,4,4)
+Q2data = data.frame(uniformity, WaterPosition)
+```
+
+### (a) Is there a difference in the wafer positions? Use a=0.05.
+```{r}
+group_by(Q2data, WaterPosition) %>%
+    summarise(
+        count = n(),
+        mean = mean(uniformity, na.rm = TRUE),
+        sd = sd(uniformity, na.rm = TRUE),
+    )
+
+# is there a difference in the wafer positions?
+# use alpha = 0.05
+# H0: mu1 = mu2 = mu3 = mu4
+# H1: at least one of the means is different
+
+res.aov = aov(uniformity ~ factor(WaterPosition), data = Q2data)
+summary(res.aov)
+
+F0 = 5.407/0.652 #F value: 8.292945
+pf(F0, 3, 8, lower.tail = FALSE) # p value:0.00774
+```
+$\therefore$ The p-value for the water position (0.00774) is less than 0.05, so we reject the null hypothesis. There is a difference in the wafer positions.
+
+### (b) Estimate the variability due to wafer position (sigma tau hat squared).
+
+```{r}
+# estimate the variability due to wafer position
+# estimating the parameters in the random model
+a = 4 # number of levels
+n = 3 # number of replicates
+MStreat = 5.407 # sum of squares(treatment)/df(treatment)
+MSerror = 0.652 # sum of squares(error)/df(error)
+sigma_tau_hat_squared = (MStreat - MSerror)/n # ANSWER: 1.585
+```
+$\therefore$ 1.585
+
+### (c) Estimate the random error component (sigma hat squared).
+```{r}
+sigma_hat_squared = MSerror # ANSWER: 0.652
+
+#double checking
+remres = lmer(uniformity ~ 1|factor(WaterPosition))
+summary(remres)
+```
+$\therefore$ 0.652
+
+### (d) Analyze the residuals from this experiment and comment on model adequacy.
+```{r}
+# Model adequacy checking
+plot(WaterPosition, uniformity, main="Water Position vs. Uniformity", xlab="Water Position",
+     ylab="Uniformity")
+
+# Normality test
+uniformity_residual = res.aov$residuals
+qqnorm(uniformity_residual,ylim=c(min(uniformity_residual)-1,max(uniformity_residual)+1),
+main="Normal Q-Q plot of residuals",
+xlab="Theoretical Quantiles",
+ylab="Sample Quantiles", plot.it=TRUE, datax=FALSE)
+
+qqline(uniformity_residual, col="red", lwd=2, datax= FALSE)
+shapiro.test(uniformity_residual)
+```
+$\therefore$ The p value is 0.3558 so the data is likely normally distributed.
+There's no indication of violation of normality assumption. But there are some outliers.
+
+```{r}
+# Variance test
+Fitted_values = res.aov$fitted.values
+plot(Fitted_values, uniformity_residual, main="Residual vs. Fitted values", xlab="Fitted values"
+     , ylab="Residuals")
+abline(h=0)
+```
+$\therefore$ Residuals are changing and variances seem different especially for the water position 1 level.
+Wafer position 1 (fitted value: 4.306667) seems to have a greater variance than othe positions.
+
+## Question 3. The effect of three different lubricating oils on fuel economy in diesel truck engines is being studied. Fuel economy is measured using brake-specific fuel consumption after the engine has been running for 15 minutes. Five different truck engines are available for the study, and the experimenters conduct the following randomized complete block design.
+
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("question3.png")
+```
+
+```{r}
+fuel = c(
+    0.500, 0.634, 0.487, 0.329, 0.512,
+    0.535, 0.675, 0.520, 0.435, 0.540,
+    0.513, 0.595, 0.488, 0.400, 0.510)
+Oil = c(
+    1, 1, 1, 1, 1,
+    2, 2, 2, 2, 2,
+    3, 3, 3, 3, 3)
+batch = c(
+    1, 2, 3, 4, 5,
+    1, 2, 3, 4, 5,
+    1, 2, 3, 4, 5)
+Q3_Yield_data = data.frame(fuel, as.factor(Oil), as.factor(batch))
+```
+
+### (a) Analyze the data from this experiment.
+
+```{r}
+# H0: tau1 = tau2 = tau3 = 0
+# H1: At least two effect(tau) are not equal to 0
+
+group_by(Q3_Yield_data, factor(Oil)) %>%
+    summarise(
+        count = n(),
+        mean = mean(batch, na.rm = TRUE),
+        sd = sd(batch, na.rm = TRUE),
+    )
+
+# Using ANOVA
+res.aov = aov(fuel ~ factor(Oil)+factor(batch), data = Q3_Yield_data)
+summary(res.aov)
+```
+
+$\therefore$ The p-value for oil factor is 0.0223, which is between 0.05 and 0.1, so we reject H0. At least two treatment effects(tau i) are not 0.
+
+### (b) Use the Tukey method to make comparisons among the three lubricating oils to determine specifically which oils differ in break-specific fuel consumption.
+```{r}
+TukeyHSD(res.aov, which = "factor(Oil)")
+```
+$\therefore$ By observing p-values, we can observe that Oil 3 and 1 do not differ (p-value: 0.821), but Oil 2 is different from Oil 1 and 3 in terms of break-specific fuel consumption(p-value: 0.0245 and 0.0595 respectively).
+
+### (c) Analyze the residuals from this experiment.
+```{r}
+# Oil vs fuel consumption plot
+plot(Oil, fuel, main="Oil vs. Fuel ", xlab="Oil", ylab="Fuel")
+
+# Model adequacy checking
+fuel_residual = res.aov$residuals
+
+# residuals vs. oil plot
+qqplot(Oil, fuel_residual, main="Residual vs. Oil", xlab="Oil", ylab="Residuals")
+abline(h=0)
+
+# Normality test
+qqnorm(fuel_residual,ylim=c(min(fuel_residual),max(fuel_residual)),
+main="Normal Q-Q plot of residuals",
+xlab="Sample Quantiles",
+ylab="Theoretical Quantiles", plot.it=TRUE, datax=TRUE)
+
+qqline(fuel_residual, col="red", lwd=1, datax= TRUE)
+
+shapiro.test(fuel_residual)
+```
+$\therefore$ The p value is 0.1836 > 0.05 so the data is normally distributed. There's no indication of violation of normality assumption.
+```{r}
+# Variance test
+Fitted_values = res.aov$fitted.values
+plot(Fitted_values, fuel_residual, main="Residual vs. Fitted values", xlab="Fitted values", 
+     ylab="Residuals")
+abline(h=0)
+```
+$\therefore$ The plot seems to be randomly spread out. There's no indication of violation of variance assumption.
+
+## Question 4. Consider the ratio control algorithm experiment described in Section 3.8 of your textbook. The experiment was actually conducted as a randomized block design, where six time periods were selected as the blocks, and all four ratio control algorithms were tested in each time period. The average cell voltage and the standard deviation of voltage (shown in parentheses) for each cell are as follows:
+
+```{r echo=FALSE, out.width = "60%", fig.align = "center"}
+knitr::include_graphics("question4.png")
+```
+
+```{r}
+voltage = c(
+    4.93, 4.86, 4.75, 4.95, 4.79, 4.88,
+    4.85, 4.91, 4.79, 4.85, 4.75, 4.85,
+    4.83, 4.88, 4.90, 4.75, 4.82, 4.90,
+    4.89, 4.77, 4.94, 4.86, 4.79, 4.76
+)
+algorithm = c(
+    1, 1, 1, 1, 1, 1,
+    2, 2, 2, 2, 2, 2,
+    3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4
+)
+time_block = c(
+    1, 2, 3, 4, 5, 6,
+    1, 2, 3, 4, 5, 6,
+    1, 2, 3, 4, 5, 6,
+    1, 2, 3, 4, 5, 6
+)
+Q4_Yield_data = data.frame(voltage, as.factor(algorithm), as.factor(time_block))
+```
+
+### (a) Analyze the average cell voltage data. (Use a = 0.05.) Does the choice of ratio control algorithm affect the cell voltage? Justify
+```{r}
+group_by(Q4_Yield_data, factor(algorithm)) %>%
+     summarise(
+         count = n(),
+         mean = mean(voltage, na.rm = TRUE),
+         sd = sd(voltage, na.rm = TRUE),
+     )
+
+res.aov = aov(voltage ~ factor(algorithm)+factor(time_block), data = Q4_Yield_data)
+summary(res.aov)
+
+ta = qtukey(0.05, 3, 15, lower.tail = FALSE) #3.673378
+```
+$\therefore$ The p-value for algorithm factor is 0.901 so we fail to reject H0 so there's no significant difference between algorithms on mean value of cell voltage. The choice of algorithm does not affect the mean cell voltage.
+
+### (b) Conduct any residual analyses that seem appropriate.
+```{r}
+# algorithm vs. voltage plot
+plot(algorithm, voltage, main="Algorithm vs. Voltage", xlab="Algorithm", ylab="Voltage")
+
+# Model adequacy test
+# Normality
+voltage_residual = res.aov$residuals
+qqnorm(voltage_residual, ylim=c(min(voltage_residual)-1,max(voltage_residual)+1),
+       main = "Normal Q-Q Plot for Residuals",
+       xlab = "Theoretical Quantiles", ylab = "Sample Quantiles- Modified",
+       plot.it = TRUE, datax = FALSE)
+
+qqline(voltage_residual, datax = FALSE, distribution = qnorm)
+
+# Test normality using Shapiro Wilks
+shapiro.test(voltage_residual)
+```
+$\therefore$ The p-value is 0.6487, which is greater than 0.05, so we fail to reject the null hypothesis that the data is normally distributed. Therefore, the normality assumption is reasonable.
+
+```{r}
+# Variance test
+Fitted_values = res.aov$fitted.values
+plot(Fitted_values, voltage_residual, main="Residual vs. Fitted values", xlab="Fitted values", ylab="Residuals")
+abline(h=0)
+```
+$\therefore$ The plots seem to be spread out. There's no indication of violation of constant variance assumption.
+
+### (c) Which ratio control algorithm would you select if your objective is to reduce the average cell voltage?
+```{r}
+Tukey = TukeyHSD(x=res.aov, "factor(algorithm)", conf.level = 0.95)
+Tukey
+
+group_by(Q4_Yield_data, factor(algorithm)) %>%
+     summarise(
+         count = n(),
+         mean = mean(voltage, na.rm = TRUE),
+         sd = sd(voltage, na.rm = TRUE),
+     )
+```
+$\therefore$ Since the p-value for difference between any pair is large,
+the ratio control algorithm does not have a significant effect on mean cell voltage, but since the algorithm 2 has a smaller standard deviation, I would select algorithm 2.
+
+## Question 5. The effect of five different ingredients (A, B, C, D, E) on reaction time of a chemical process is being studied. Each batch of new material is only large enough to permit five runs to be made. Furthermore, each run requires approximately 1 1/2 hours, so only five runs can be made in one day. The experimenter decides to run the experiment as a Latin square so that day and batch effects can be systematically controlled. She obtains the data that follow. Analyze the data from this experiment (use a = 0.05) and draw conclusions.
+
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("question5.png")
+```
+
+```{r}
+rm(list = ls())
+Day<-c(rep(1,5), rep(2,5),rep(3,5), rep(4,5),rep(5,5))
+Batch<-c(c(1,3,2,4,5),c(3,1,4,5,2),c(2,5,3,1,4),c(5,4,1,2,3),c(4,2,5,3,1))
+Ingredient<-rep(c(rep('A',1), rep('B',1),rep('C',1), rep('D',1),rep('E',1)),5)
+Reaction_time<-c(8,4,11,6,4,
+                9,7,8,2,2,
+                7,3,10,1,6,
+                8,6,7,3,1,
+                10,8,8,5,3)
+
+Q5_data <- data.frame(Reaction_time, Ingredient,Day,Batch)
+```
+
+```{r}
+# H0: tau1 = tau2 = tau3 = tau4 = tau5 = 0 (taui is the effect of ith ingredient)
+# H1: At least two effect(tau) are not equal to 0
+
+res.aov <-aov(Reaction_time~factor(Ingredient)+factor(Day)+factor(Batch),data=Q5_data)
+summary(res.aov)
+```
+$\therefore$ Since the p-value for Ingredient effect (0.000488) is much smaller than 0.05, so we reject H0.
+Then at least two effects are not equal to 0.
+
+```{r}
+# multiple comparison test
+Tukey = TukeyHSD(x=res.aov, "factor(Ingredient)", conf.level = 0.95)
+Tukey
+# treatment(ingredient) effect values
+model.tables(res.aov,se=TRUE)
+```
+$\therefore$ The pairs D-A, E-A, D-C, and E-C are significantly different within the pair. Therefore, other than ingredient B, the other ingredients have a significant effect on reaction time.
+Ingredients A and C has positive treatment effect on reaction time, while ingredients D and E has negative treatment effect on reaction time.
+
+```{r}
+# Model adequacy test
+# Normality
+Reaction_time_residual = res.aov$residuals
+qqnorm(Reaction_time_residual, ylim=c(min(Reaction_time_residual)-1,max(Reaction_time_residual)+1), main = "Normal Q-Q Plot for Residuals",
+       xlab = "Theoretical Quantiles", ylab = "Sample Quantiles- Modified",
+       plot.it = TRUE, datax = FALSE)
+
+qqline(Reaction_time_residual, datax = FALSE, distribution = qnorm)
+
+# Test normality using Shapiro Wilks
+shapiro.test(Reaction_time_residual)
+```
+$\therefore$ The p-value is 0.5476, which is greater than 0.05, so we fail to reject the null hypothesis that the data is normally distributed. Therefore, the normality assumption is reasonable.
+
+```{r}
+# Variance test
+Fitted_values = res.aov$fitted.values
+plot(Fitted_values, Reaction_time_residual, main="Residual vs. Fitted values", xlab="Fitted values"
+     , ylab="Residuals")
+abline(h=0)
+```
+$\therefore$ The plots seem to be ramdomly spread out. There's no indication of violation of constant variance assumption.
+
+## Question 6. The yield of a chemical process was measured using five batches of raw material, five acid concentrations, five standing times, (A, B, C, D, E) and five catalyst concentrations (a, b, g, d, e). The Graeco-Latin square that follows was used. Analyze the data from this experiment (use a = 0.05) and draw conclusions. 
+
+```{r echo=FALSE, out.width = "30%", fig.align = "center"}
+knitr::include_graphics("TableQuestion6_A2.png")
+```
+
+```{r}
+Yield = c(26,18,20,15,10,
+          16,21,12,15,24,
+          19,18,16,22,17,
+          16,11,25,14,17,
+          13,21,13,17,14)
+Acid_conc = c(rep(1,5), rep(2,5), rep(3,5), rep(4,5), rep(5,5))
+Batch = c(rep(c(1,2,3,4,5),5))
+Standing_time = c("A","B","C","D","E",
+                  "B","C","D","E","A",
+                  "C","D","E","A","B",
+                  "D","E","A","B","C",
+                  "E","A","B","C","D") #Treatment
+Catalyst_conc = c("a","g","e","b","d",
+                  "b","d","a","g","e",
+                  "g","e","b","d","a",
+                  "d","a","g","e","b",
+                  "e","b","d","a","g") #Treatment
+Q6_data <- data.frame(Yield, Acid_conc, Batch, Standing_time, Catalyst_conc)
+```
+
+```{r}
+res.aov <-aov(Yield~factor(Standing_time)+factor(Catalyst_conc)+factor(Acid_conc)+factor(Batch),
+              data=Q6_data)
+summary(res.aov)
+```
+$\therefore$ Since only the p-value for Standing_time effect (0.00941) is smaller than 0.05, at least two standing effects are different and the choice of Catalyst concentrations does not have significant effect on the yield of a chemical process.
+
+```{r}
+# multiple comparison test
+Tukey = TukeyHSD(x=res.aov, "factor(Standing_time)", conf.level = 0.95)
+Tukey
+
+# treatment(ingredient) effect values
+model.tables(res.aov,se=TRUE)
+```
+$\therefore$ The pairs, B-A, D-A,E-A, and E-C are significantly different within each pair.
+Also from the model.tables, we can see that the standing time A and C has positive treatment effect on yield, while standing time B, D and E has negative treatment effect on yield.
+But the effect of standing time B is not significant.
+
+```{r}
+# Model adequacy test
+# Normality
+Yield_residual = res.aov$residuals
+qqnorm(Yield_residual, ylim=c(min(Yield_residual)-1,max(Yield_residual)+1), main = "Normal Q-Q Plot for Residuals",
+       xlab = "Theoretical Quantiles", ylab = "Sample Quantiles- Modified",
+       plot.it = TRUE, datax = FALSE)
+
+qqline(Yield_residual, datax = FALSE, distribution = qnorm)
+
+# Test normality using Shapiro Wilks
+shapiro.test(Yield_residual)
+```
+
+$\therefore$ The p-value is 0.2167, which is greater than 0.05, so we fail to reject the null hypothesis that the data is normally distributed. Therefore, the normality assumption is reasonable.
+
+```{r}
+# Variance test
+Fitted_values = res.aov$fitted.values
+plot(Fitted_values, Yield_residual, main="Residual vs. Fitted values", xlab="Fitted values", ylab="Residuals")
+abline(h=0)
+```
+$\therefore$ The plots seem to be ramdomly spread out. There's no indication of violation of constant variance assumption.
