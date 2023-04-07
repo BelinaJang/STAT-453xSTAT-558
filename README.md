@@ -17,5 +17,5 @@ Chapter 6: The 2k Factorial Design
 Chapter 7: Blocking and Confounding in the 2k Factorial Design,
 Chapter 8: Two-Level Fractional Factorial Designs
 
-[Final Project]()
+[Final Project](https://github.com/BelinaJang/STAT-453xSTAT-558/blob/main/final_report.pdf)
 Differences in the dissolution rates of ibuprofen depend on the form of medicine
