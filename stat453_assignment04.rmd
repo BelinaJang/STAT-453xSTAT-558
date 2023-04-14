@@ -1,0 +1,270 @@
+---
+title: "Stat453_Assignment04"
+author: "Belina Jang V00924202"
+date: '`r Sys.Date()`'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(lme4)
+library(dplyr)
+library(ggplot2)
+library(daewr)
+```
+# Questions
+
+### Question 1. Consider the full 2^5 factorial design Question 5 of Assignment 3. Suppose that this experiment had been run in two blocks with ABCDE confounded with the blocks. Set up the blocked design and perform the analysis. Compare your results with the results obtained for the completely randomized design in Question 5 Assignment 3.
+
+```{r}
+A = rep(c(-1,1), 16)
+B = rep(c(-1,-1,1,1),8)
+C = rep(c(rep(-1,4),rep(1,4)),4)
+D = rep(c(rep(-1,8),rep(1,8)),2)
+E = c(rep(-1,16),rep(1,16))
+ABCDE = A*B*C*D*E
+
+y = c(8.11,5.56,5.77,5.82,9.17,7.8,3.23,5.69,8.82,14.23,9.2,8.94,8.68,11.49,6.25,9.12,
+      7.93,5,7.47,12,9.86,3.65,6.4,11.61,12.43,17.55,8.87,25.38,13.06,18.85,11.78,26.05)
+q5_data = data.frame(A,B,C,D,E,ABCDE,y)
+
+# if ABCDE = -1, Block1 = 1, else Block1 = 2
+q5_data$Block1 = ifelse(q5_data$ABCDE == -1, 1, 2)
+q5_data = subset(q5_data, select = -ABCDE) # remove ABCDE column
+
+# Option1: Confouding ABCDE with blocks: Not dropping C
+res.lm1=lm(y~A*B*C*D*E-A:B:C:D:E+factor(Block1),data=q5_data)
+fullnormal(na.omit(coef(res.lm1)[-1]),alpha=.025)
+
+# Option2: We can drop C since it's insignificant
+res.aov2=aov(y~A*B*D*E-A:B:D:E+factor(Block1),data=q5_data)
+summary(res.aov2)
+res.lm2=lm(y~A*B*D*E-A:B:D:E+factor(Block1), data=q5_data)
+summary(res.lm2)
+
+```
+$\therefore$ Comparing with the original full model (not projected), same factors and interactions (A, D, E, AB, AD, AE, BE, DE, ABE and ADE) are significant and SS of them stayed the same except SS of A:B:C:D:E (which was 4.04) disappeared since we confound it with blocks and the SS of block appeared now as 4.04 instead.\
+All the estimates didn't change except (Intercept) changed, ABCDE disappeared and block appeared due to confounding with blocks. Now the sum of estimates for (Intercept) and ABCDE from the original model (10.180312 -0.355312 = 9.825) is the same as the sum of new estimates for (Intercept) and block (10.53562 -0.71062 = 9.825).
+
+### Question 2. Consider the data in Example 7.2 showed on page 17 of the slides of Chapter 7. Suppose that all the observations in block 2 are increased by 20. Analyze the data that would result. Estimate the block effect. Can you explain its magnitude? Do blocks now appear to be an important factor? Are any other effect estimates impacted by the change you made in the data?
+
+```{r echo=FALSE, out.width = "30%", fig.align = "center"}
+knitr::include_graphics("chapter7_page16.png")
+```
+
+```{r}
+# Before
+A=rep(c(-1,1),8)
+B=rep(c(rep(-1,2),rep(1,2)),4)
+C=rep(c(rep(-1,4),rep(1,4)),2)
+D=c(rep(-1,8),rep(1,8))
+
+FiltrationRate=c(25,71,48,45,68,40,60,65,43,80,25,104,55,86,70,76)
+Block1=c(1,2,2,1,2,1,1,2,2,1,1,2,1,2,2,1)
+FiltrationRate_Data = data.frame(FiltrationRate,A,B,C,D,Block1)
+
+res.aov1=aov(FiltrationRate~A*B*C*D-A:B:C:D+Block1,data=FiltrationRate_Data)
+summary(res.aov1)
+res.aov1$coefficients # R automatically uses Block2-Block1 (Block2 as referance) instead.
+
+res.lm1=lm(FiltrationRate~A*B*C*D-A:B:C:D+Block1, data=FiltrationRate_Data)
+fullnormal(na.omit(coef(res.lm1)[-1]),alpha=.025)
+
+# B not significant, drop B and insignificant interactions
+res.aov2=aov(FiltrationRate~A*C*D-C:D-A:C:D+Block1,data=FiltrationRate_Data)
+summary(res.aov2)
+res.aov2$coefficients # R automatically uses Block2-Block1 (Block2 as referance) instead.
+
+# Calculating block effect
+# select block 1
+FiltrationRate_Data1 = subset(FiltrationRate_Data, Block1 == 1)
+sum1 = sum(FiltrationRate_Data1$FiltrationRate)
+# select block 2
+FiltrationRate_Data2 = subset(FiltrationRate_Data, Block1 == 2)
+sum2 = sum(FiltrationRate_Data2$FiltrationRate)
+# Block effect
+BE = sum(FiltrationRate_Data1$FiltrationRate)/8-sum(FiltrationRate_Data2$FiltrationRate)/8
+BE # -18.625 based on Block1-Block2 (Block1 as referance)
+```
+
+```{r}
+# All the observations in block 2 are increased by 20
+FiltrationRate[Block1==2]=FiltrationRate[Block1==2]+20
+FiltrationRate_Data = data.frame(FiltrationRate,A,B,C,D,Block1)
+
+# Method1: Confound ABCD with blocks
+res.aov3=aov(FiltrationRate~A*B*C*D-A:B:C:D+Block1,data=FiltrationRate_Data)
+summary(res.aov3)
+res.aov3$coefficients # R automatically calculates effects using Block2 as the reference
+
+res.lm3=lm(FiltrationRate~A*B*C*D-A:B:C:D+Block1,data=FiltrationRate_Data)
+fullnormal(na.omit(coef(res.lm3)[-1]),alpha=.025)
+
+# Method2: Confound ABCD with blocks (dropping B since it's not significant)
+res.aov4=aov(FiltrationRate~A*C*D-C:D-A:C:D+Block1,data=FiltrationRate_Data)
+summary(res.aov4)
+res.aov4$coefficients # R automatically calculates effects using Block2 as the reference
+
+# Calculating block effect
+# select block 1
+FiltrationRate_Data1 = subset(FiltrationRate_Data, Block1 == 1)
+sum1 = sum(FiltrationRate_Data1$FiltrationRate)
+# select block 2
+FiltrationRate_Data2 = subset(FiltrationRate_Data, Block1 == 2)
+sum2 = sum(FiltrationRate_Data2$FiltrationRate)
+# SSblock
+SSblock = (sum1^2+sum2^2)/8-(sum(FiltrationRate))^2/16
+SSblock
+# Block effect
+BE = sum(FiltrationRate_Data1$FiltrationRate)/8-sum(FiltrationRate_Data2$FiltrationRate)/8
+BE # -38.625 based on Block1-Block2 (Block1 as referance)
+```
+
+$\therefore$ The previous block effect for (Block1-Block2: Block 1 as reference level) was -18.625. And since we increased all the observations in Block2 by 20 and we want Block1 to be the reference level, we need to subtract 20 from the previous block effect. Then the new block effect is -18.625 - 20 = -38.625. Therefore, the magnitude of the block effect is larger than before. Blocks is still an important factor. The other effect estimates (other than the intercept and Block1) are not impacted by the change we made in the data.
+
+### Question 3. (Example 6.6. of your textbook). An article in the International Journal of Research in Marketing (“Experimental Design on the Front Lines of Marketing: Testing New Ideas to Increase Direct Mail Sales,” 2006, Vol. 23, pp. 309–319) describes an experiment to test new ideas to increase credit card division of a financial services company. They want to improve the response rate to its credit card offers. They know from experience that the interest rates are an important factor in attracting potential customers, so they have decided to focus on factors involving both interest rates and fees. They want to test changes in both introductory and long-term rates, as well as the effects of adding an account-opening fee and lowering the annual fee. The factors tested in the experiment are as follows:
+
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("q3_1.png")
+```
+```{r echo=FALSE, out.width = "30%", fig.align = "center"}
+knitr::include_graphics("q3_2.png")
+```
+```{r}
+A=rep(c(-1,1),8)
+B=rep(c(rep(-1,2),rep(1,2)),4)
+C=rep(c(rep(-1,4),rep(1,4)),2)
+D=c(rep(-1,8),rep(1,8))
+y=c(2.45,3.36,2.16,2.29,2.49,3.39,2.32,2.44,1.84,2.24,1.69,1.87,2.29,2.92,2.04,2.03)
+q3_data = data.frame(A,B,C,D,y)
+```
+### (a) Analyze the data and determine which factor is not significant.
+```{r}
+res.aov = aov(y~A*B*C*D,data=q3_data)
+summary(res.aov) #original model automatically based on Block2 - Block1 (Block2 as reference)
+res.aov$coefficients
+
+res.lm=lm(y~A*B*C*D, data=q3_data)
+fullnormal(na.omit(coef(res.lm)[-1]),alpha=.05) #assume a=0.05 then A,B,D are significant
+```
+$\therefore$ Factor C is not significant.
+
+### (b) Project the 2^4 design into two replicates of a 2^3 on the significant factors. The new design table should include the runs, factors, responses, and labels
+```{r}
+# Drop C; Projected model
+res.aov = aov(y~A*B*D,data=q3_data)
+summary(res.aov)
+
+# Each replicate separate entry
+runs = c(1:16)
+labels = c("(1)","a","b","ab","(1)","a","b","ab","d","ad","bd","abd","d","ad","bd","abd")
+d2_3_1 = data.frame(runs,labels,A,B,D,y)
+d2_3_1
+```
+
+```{r}
+# 2 replicates in a single entry
+A_2=rep(c(-1,1),4)
+B_2=rep(c(rep(-1,2),rep(1,2)),2)
+D_2=rep(c(rep(-1,4),rep(1,4)),1)
+runs_2 = c(1:8)
+labels_2 = c("(1)","a","b","ab","d","ad","bd","abd")
+rep1 = c(2.45,3.36,2.16,2.29,1.84,2.24,1.69,1.87)
+rep2 = c(2.49,3.39,2.32,2.44,2.29,2.92,2.04,2.03)
+d2_3_2 = data.frame(runs_2,labels_2,A_2,B_2,D_2,rep1,rep2)
+d2_3_2
+```
+### (c) In the projected design, what is the estimated effect of the account-opening fee in the response rate?
+```{r}
+res.aov = aov(y~A*B*D,data=d2_3_1) # projected design
+estimated_effect = res.aov$coefficients*2 # coefficient*2
+estimated_effect
+```
+$\therefore$ The estimated effect of the account-opening fee (B) is -0.5175.
+
+### (d) Using the projected design, is the account-opening fee significant?
+```{r}
+summary(res.aov)
+```
+$\therefore$ The p-value is smaller than 0.05, so the effect of account-opening fee (B) is significant.
+
+### (e) Confound the projected design with blocks using the highest order interaction as a confounding. Write down the runs for both blocks and estimate the block effect. What is the block effect really estimating in this case?
+
+```{r}
+# Confound with the highest order interaction ABD
+# Each replicate in a separate entry
+d2_3_C = d2_3_1
+d2_3_C$Block1 = A*B*D
+
+# if ABD = -1, Block1 = 1, else Block1 = 2
+d2_3_C$Block1 = ifelse(d2_3_C$Block1 == -1, 1, 2)
+d2_3_C
+
+# Block effect based on Block1 - Block2 (Block1 as the reference)
+block_effect = sum(d2_3_C$y[d2_3_C$Block1 == 1])/8 - sum(d2_3_C$y[d2_3_C$Block1 == 2])/8 # -0.0875
+
+res.lm = lm(y~A*B*D+factor(Block1),data=d2_3_C)
+summary(res.lm) # R automatically estimates using Block2-Block1 (Block2 as the reference)
+```
+$\therefore$ The estimate for the block effect (Block1 as reference) is -0.0875. What the block effect really estimating is Block + ABD.
+
+### Question 4. In the previous example, a 2^4 factorial design was used to improve the response rate to a credit card marketing offer. Suppose that the researchers had used the 2^(4-1) fraction factorial design with I=ABCD instead. Set up the design and select the responses for the runs from the full factorial data in Example 6.6. Analyze the data and draw conclusions. Compare your findings with those from the full factorial in Example 6.6.
+
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("q4.png")
+```
+
+```{r}
+A = rep(c(-1,1),4)
+B = rep(c(rep(-1,2),rep(1,2)),2)
+C = rep(c(rep(-1,4),rep(1,4)),1)
+D = A*B*C
+treatment = c("(1)","ad","bd","ab","cd","ac","bc","abcd")
+rate = c(2.45, 2.24, 1.69, 2.29, 2.29, 3.39, 2.32, 2.03)
+q4_data = data.frame(A,B,C,D,treatment,rate)
+```
+
+```{r}
+res.lm=lm(rate~A*B*C*D, data=q4_data)
+summary(res.lm)
+
+fullnormal(na.omit(coef(res.lm)[-1]), alpha = 0.05)
+```
+$\therefore$ Assuming a = 0.05, no effect is significant (A,B,D are no longer significant in this fractional design).\
+The estimates for each factor/interaction are changed based on the aliased structure of the factor/interaction using the effect estimates from the previous full design.\
+A is aliased with BCD, so [A] = A(full) + BCD(full) = 0.20375 - 0.05375 = 0.15 (fraction)\
+B is aliased with ACD, so [B] = B(full) + ACD(full) = -0.25875 + 0.00375 = -0.255 (fraction)\
+C is aliased with ABD, so [C] = C(full) + ABD(full) = 0.12625 + 0.04375 = 0.17 (fraction)\
+D is aliased with ABC, so [D] = D(full) + ABC(full) = -0.24875 - 0.02625 = -0.275 (fraction)\
+AB is alised with CD, so [AB] = AB(full) + CD(full) = -0.15125 + 0.07875 = -0.0725 (fraction)\
+AC is alised with BD, so [AC] = AC(full) + BD(full) = 0.00125 + 0.05125 = 0.0525 (fraction)\
+BC is alised with AD, so [BC] = BC(full) + AD(full) = -0.02375 - 0.05375 = -0.0775 (fraction)
+
+### Question 5.
+
+### (a) Construct 2^(5-2) design using the generator D=+AB and E=-AC.
+```{r}
+runs = c(1:8)
+A = rep(c(-1,1),4)
+B = rep(c(rep(-1,2),rep(1,2)),2)
+C = rep(c(rep(-1,4),rep(1,4)),1)
+D = A*B
+E = -A*C
+labels = c("d","ae","b","abde","cde","ac","bce","abcd")
+q4_data = data.frame(runs,labels,A,B,C,D,E)
+q4_data
+```
+### (b) What is the complete defining relation for this design?
+$\therefore$ I = ABD = -ACE = -BCDE
+
+### (c) What is the alias structure for the effects of A, B, C, D, and E? What does this alias structure tell us about the resolution of this design?
+A = BD = -CE = -ABCDE\
+B = AD = -ABCE = -CDE\
+C = ABCD = -AE = -BDE\
+D = AB = -ACDE = -BCE\
+E = ABDE = -AC = -BCD\
+
+$\therefore$ The resolution for this design is 3.

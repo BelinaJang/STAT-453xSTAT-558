@@ -1,0 +1,261 @@
+---
+title: "Stat453_Assignment03"
+author: "Belina Jang V00924202"
+date: '`r Sys.Date()`'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(lme4)
+library(dplyr)
+library(ggplot2)
+library(daewr)
+```
+# Questions
+
+## Question 1. The yield of a chemical process is being studied. The two most important variables are thought to be the pressure and the temperature. Three levels of each factor are selected, and a factorial experiment with two replicates is performed. The yield data follow:
+
+```{r echo=FALSE, out.width = "40%", fig.align = "center"}
+knitr::include_graphics("q1.png")
+```
+
+```{r}
+rm(list = ls())
+Temperature=rep(c(rep(150,2),rep(160,2),rep(170,2)),3)
+Pressure<-c(rep(200,6), rep(215,6),rep(230,6))
+Yield = c(90.4, 90.2, 90.1, 90.3, 90.5, 90.7,
+          90.7, 90.6, 90.5, 90.6, 90.8, 90.9,
+          90.2, 90.4, 89.9, 90.1, 90.4, 90.1)
+q1_data <- data.frame(Yield,Temperature, Pressure)
+
+#Using ANOVA
+
+res.aov <-aov(Yield~ factor(Temperature)*factor(Pressure),data=q1_data)
+summary(res.aov)
+res.aov$coefficients
+
+#Multiple comparisons
+
+TUKEY <- TukeyHSD(x=res.aov, conf.level=0.95)
+TUKEY
+```
+
+### (a) Analyze the data and draw conclusions. Use a = 0.05.
+$\therefore$ The p-value (0.470006) for the interaction term is bigger than 0.05, therefore the effect of interaction is not significant. So we can just look at the Tukey test result for the main effects.
+Temperature: p-value (0.0066518) for the difference between levels 170 and 160 < a=0.05, therefore the effect of temperature is significant.
+Pressure: p-values fore the difference between levels are smaller than a=0.05 except for the difference between 230 and 200 (p-value: 0.0944905), therefore the effect of pressure is significant.
+So both temperature and pressure are significant factors, but interaction is not significant.
+
+### (b) Prepare appropriate residual plots and comment on the model’s adequacy.
+```{r}
+#Normality
+residuals=res.aov$residuals
+qqnorm(residuals, ylim=c(min(residuals)-1,max(residuals)+1), main = "Normal Q-Q Plot for Residuals",
+       xlab = "Theoretical Quantiles", ylab = "Sample Quantiles- Modified",
+       plot.it = TRUE, datax = FALSE)
+
+qqline(residuals, datax = FALSE, distribution = qnorm)
+#Test normality using Shapiro Wilks
+shapiro.test(residuals)
+
+#Check Variance
+Fitted_values=res.aov$fitted.values
+plot(Fitted_values,residuals,ylab="Residuals",xlab="Fitted Values")
+abline(h=0)
+```
+$\therefore$ Normality plot does not seem to violate normality assumption but the p-value of the shapiro test is smaller than a=0.05, so it might not be normally distributed. Therefore there's an indication of violation of the normality assumption.
+Since the variance plots seem spread out, there's no indication of violation of the constant variance assumption.
+
+### (c) Under what conditions would you operate this process (i.e., which conditions maximize the yield)?
+```{r}
+q1_data["Fitted"] = res.aov$fitted.values
+q1_data[res.aov$fitted.values == max(res.aov$fitted.values),]
+```
+$\therefore$ Since the interaction term is not significant, we don't need to worry about the effect of interaction, so temperature at 170(since the diff of 170-160 is positive and significant) and pressure at 215(since the diff of 215-200 is positive and significant) would maximize the yield.
+
+## Question 2. The C. F. Eye Care company manufactures lenses for transplantation into the eye following cataract surgery. An engineering group has conducted an experiment involving two factors to determine their effect on the lens polishing process. The results of this experiment are summarized in the following ANOVA display:
+
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("q2.png")
+```
+
+### (a) Complete the table
+```{r}
+dfB = floor(96.333/96.333) #1
+dfA = 2/dfB #2
+SSA = 0.0833*dfA #0.1666
+MSE = 10/6 #1.666667
+PInteraction = pf(3.65, 2, 6, lower.tail = FALSE) #0.09181187
+```
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("q2a.png")
+```
+### (b) How many replicates are in this experiment?
+$\therefore$ Since a-1 = 2 and b-1 = 1, a = 3 and b = 2. Since df(error) = 6 = ab(n-1) and df(Total)= abn-1 = 11, n = 2.
+Therefore there are 2 replicates in this experiment.
+
+### (c) Does the effect of factor B depend on the level of factor A? Justify.
+$\therefore$ Since the p-value of the interaction term is bigger than a=0.05, the effect of the interaction term is not significant which shows that the effect of factor B does not depend on the level of factor A.
+
+## Question 3. An experiment was performed to improve the yield of a chemical process. Four factors were selected, and two replicates of a completely randomized experiment were run. The results are shown in the following table:
+
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("q3.png")
+```
+
+```{r}
+A=rep(c(-1,1),8)
+B=rep(c(rep(-1,2),rep(1,2)),4)
+C=rep(c(rep(-1,4),rep(1,4)),2)
+D=c(rep(-1,8),rep(1,8))
+rep1 = c(90, 74, 81, 83, 77, 81, 88, 73,
+         98, 72, 87, 85, 99, 79, 87, 80)
+rep2 = c(93, 78, 85, 80, 78, 80, 82, 70,
+         95, 76, 83, 86, 90, 75, 84, 80)
+A = rep(A, rep(2, 16))
+B = rep(B, rep(2, 16))
+C = rep(C, rep(2, 16))
+D = rep(D, rep(2, 16))
+yield = cbind(rep1,rep2)
+yield.vec = c(t(yield))
+yield_data = data.frame(A, B, C, D, yield.vec)
+```
+### (a) Estimate the factor effects.
+```{r}
+#Using ANOVA
+res.aov <-aov(yield.vec~A*B*C*D,data=yield_data)
+res.aov$coefficients
+res.aov$coefficients[-1]*2 #factor effects
+```
+Factor effects are as follows: A = -9.0625, B = -1.3125, C = -2.6875, D = 3.9375, AB = 4.0625, AC = 0.6875, BC = -0.5625, AD = -2.1875, BD = -0.1875, CD = 1.6875, ABC = -5.1875, ABD = 4.6875, ACD = -0.9375, BCD = -0.9375, ABCD = 2.4375.
+
+### (b) Prepare an analysis of variance table, and determine which factors are important in explaining yield.
+```{r}
+res.aov = aov(yield.vec~A*B*C*D, data=yield_data)
+summary(res.aov)
+```
+
+$\therefore$ Factors and interactions A, C, D, AB, AD, ABC, ABD, ABCD are significant.
+
+### (c) Write down a regression model for predicting yield, assuming that all four factors were varied over the range from –1 to +1 (in coded units).
+```{r}
+res.aov$coefficients
+```
+yield = 82.78125 -4.53125A -1.34375C + 1.96875D + 2.03125AB -1.09375AD -2.59375ABC + 2.34375ABD + 1.21875ABCD
+
+### (d) Does the residual analysis appear satisfactory?
+```{r}
+#residual analysis
+#Normality
+res.aov = aov(yield.vec~A*B*C*D, data=yield_data)
+residuals=res.aov$residuals
+qqnorm(residuals, ylim=c(min(residuals)-1,max(residuals)+1), main = "Normal Q-Q Plot for Residuals",
+       xlab = "Theoretical Quantiles", ylab = "Sample Quantiles- Modified",
+       plot.it = TRUE, datax = FALSE)
+
+qqline(residuals, datax = FALSE, distribution = qnorm)
+#Test normality using Shapiro Wilks
+shapiro.test(residuals)
+
+#Check Variance
+Fitted_values=res.aov$fitted.values
+plot(Fitted_values,residuals,ylab="Residuals",xlab="Fitted Values")
+abline(h=0)
+```
+$\therefore$ Since the p-value from Shapiro Wilks test is 0.2989 > 0.05, we fail to reject the null hypothesis that the residuals are normally distributed. Therefore it is normally distributed. There's an indication of violation of the constant variance assumption since there seems to be a pattern in Fitted values vs. residuals plot.
+
+## Question 4. The effect estimates from a 2^4 factorial experiment are listed here.
+```{r echo=FALSE, out.width = "50%", fig.align = "center"}
+knitr::include_graphics("q4.png")
+```
+### (a) Are any of the effects significant?
+```{r}
+effects = c(-2.5251,-1.6564,4.4054,1.1109,-0.4932,-10.5229,-5.0842,-6.0275,-5.7696,-8.2045,
+            4.6707,-6.5304,-4.6620,-0.7914,-0.7982)
+names(effects) = c("ABCD","AD","BCD","AC","ACD","AB","ABD","D","ABC","C","CD","B","BD","A","BC")
+
+fullnormal(effects,names(effects),alpha=0.025)
+```
+$\therefore$ No, all the effects doesn't seem to be significant.
+
+### (b) What happens if the effect of the interaction AB was -50.5229 instead of -10.5229?
+```{r}
+effects[6] = -50.5229
+fullnormal(effects,names(labels),alpha=.025)
+```
+$\therefore$ The effect of the interaction AB is significant when the effect of AB is -50.5229.
+
+## Question 5. An article in Quality and Reliability Engineering International (2010, Vol. 26, pp. 223-233) presents a 2^5 factorial design. The experiment is shown in the following table:
+```{r echo=FALSE, out.width = "30%", fig.align = "center"}
+knitr::include_graphics("q5.jpg")
+```
+
+```{r}
+A <- rep(c(-1,1), 16)
+B <- rep(c(-1,-1,1,1),8)
+C <- rep(c(rep(-1,4),rep(1,4)),4)
+D <- rep(c(rep(-1,8),rep(1,8)),2)
+E <- c(rep(-1,16),rep(1,16))
+y <- c(8.11,5.56,5.77,5.82,9.17,7.8,3.23,5.69,8.82,14.23,9.2,8.94,8.68,11.49,6.25,9.12,7.93,5,7.47,12,9.86,3.65,6.4,11.61,12.43,17.55,8.87,25.38,13.06,18.85,11.78,26.05)
+q5_data <- data.frame(A,B,C,D,E,y)
+```
+
+### (a) Analyze the data from this experiment. Identify the significant factors and interactions.
+```{r}
+#Using ANOVA
+res.aov<-aov(y~A*B*C*D*E, data=q5_data)
+summary(res.aov)
+
+res.lm<-lm(y~A*B*C*D*E, data=q5_data)
+summary(res.lm)
+
+fullnormal(coef(res.lm)[-1],alpha=.05)
+```
+Factors and Interactions A, D, E, AB, AD, AE, BE, DE, ABE and ADE are significant.
+
+### (b) Analyze the residuals from this experiment. Are there any indications of model inadequacy or violations of the assumptions?
+```{r}
+#residual analysis
+#Normality: drop C (the reduced model)
+res.aov = aov(y~A*B*D*E, data=q5_data)
+residuals=res.aov$residuals
+qqnorm(residuals, ylim=c(min(residuals)-1,max(residuals)+1), main = "Normal Q-Q Plot for Residuals",
+       xlab = "Theoretical Quantiles", ylab = "Sample Quantiles- Modified",
+       plot.it = TRUE, datax = FALSE)
+
+qqline(residuals, datax = FALSE, distribution = qnorm)
+
+#Test normality using Shapiro Wilks
+shapiro.test(residuals)
+
+#Check Variance
+Fitted_values=res.aov$fitted.values
+plot(Fitted_values,residuals,ylab="Residuals",xlab="Fitted Values")
+abline(h=0)
+```
+$\therefore$ Since the p-value from Shapiro Wilks test is 0.3751 > 0.05, we fail to reject the null hypothesis that the residuals are normally distributed. So there's no indication of violation of the normality assumption. There might be a violation of the constant variance assumption since higher fitted values seem to have smaller variance.
+
+### (c) One of the factors from this experiment does not seem to be important. If you drop this factor, what type of design remains? Analyze the data using the full factorial model for only the four active factors. Compare your results with those obtained in part (a).
+```{r}
+# drop factor C
+res.aov<-aov(y~A*B*D*E, data=q5_data)
+summary(res.aov)
+res.aov$coefficients
+
+res.lm<-lm(y~A*B*D*E, data=q5_data)
+summary(res.lm)
+```
+$\therefore$ Factor C is not important. The remaining design is a 2^4 factorial design with 2 replicates. 
+And the same factors and interactions (A, D, E, AB, AD, AE, BE, DE, ABE and ADE) are significant as part (a).
+
+### (d) Find the settings of the active factors that maximize the predicted response.
+```{r}
+# Add fitted as a column to the data frame
+q5_data$Fitted = res.aov$fitted.values
+q5_data[res.aov$fitted.values==max(res.aov$fitted.values),] #also can use "which"
+```
+The maximum fitted value is 25.715 and the settings of the active factors that maximize the predicted response are (A=1, B=1, C=-1, D=1, E=1) and (A=1, B=1, C=1, D=1, E=1).
